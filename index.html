@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A股每日复盘 & 情绪择时工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        success: '#00B42A',
+                        danger: '#F53F3F',
+                        warning: '#FF7D00',
+                        neutral: '#86909C',
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .card-shadow {
+                box-shadow: 0 2px 14px 0 rgba(0, 0, 0, 0.06);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- 导航栏 -->
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-bold text-primary">A股每日复盘 & 情绪择时</h1>
+                    <span class="ml-3 text-sm text-neutral bg-gray-100 px-2 py-1 rounded">数据日期: 2026-06-02</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span id="marketStatus" class="text-sm text-neutral">--</span>
+                    <span id="updateTime" class="text-xs text-neutral">--</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- 实时大盘行情 -->
+        <div class="bg-white rounded-xl card-shadow p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">实时大盘行情 <span class="text-xs text-neutral font-normal">（每5分钟自动刷新）</span></h2>
+            <div id="realtimeIndex" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="text-center p-3 bg-gray-50 rounded-lg">
+                    <p class="text-xs text-neutral">上证指数</p>
+                    <p id="sh_price" class="text-xl font-bold text-gray-800">--</p>
+                    <p id="sh_change" class="text-sm">--</p>
+                </div>
+                <div class="text-center p-3 bg-gray-50 rounded-lg">
+                    <p class="text-xs text-neutral">深证成指</p>
+                    <p id="sz_price" class="text-xl font-bold text-gray-800">--</p>
+                    <p id="sz_change" class="text-sm">--</p>
+                </div>
+                <div class="text-center p-3 bg-gray-50 rounded-lg">
+                    <p class="text-xs text-neutral">创业板指</p>
+                    <p id="cy_price" class="text-xl font-bold text-gray-800">--</p>
+                    <p id="cy_change" class="text-sm">--</p>
+                </div>
+                <div class="text-center p-3 bg-gray-50 rounded-lg">
+                    <p class="text-xs text-neutral">沪深300</p>
+                    <p id="hs_price" class="text-xl font-bold text-gray-800">--</p>
+                    <p id="hs_change" class="text-sm">--</p>
+                </div>
+            </div>
+            <p class="text-xs text-neutral mt-3 text-right" id="realtimeUpdateTime">数据更新时间: --</p>
+        </div>
+
+        <!-- 大盘情绪图表区域 -->
+        <div class="bg-white rounded-xl card-shadow p-6 mb-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-800 mb-3 sm:mb-0">大盘情绪择时曲线 <span class="text-xs text-neutral font-normal">（复盘数据）</span></h2>
+                <div class="flex flex-wrap gap-2" id="viewTabs">
+                    <button class="view-tab active px-3 py-1.5 rounded-md text-sm font-medium bg-primary text-white" data-view="comprehensive">综合</button>
+                    <button class="view-tab px-3 py-1.5 rounded-md text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200" data-view="main">主板</button>
+                    <button class="view-tab px-3 py-1.5 rounded-md text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200" data-view="gem">创业板</button>
+                    <button class="view-tab px-3 py-1.5 rounded-md text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200" data-view="star">科创板</button>
+                    <button class="view-tab px-3 py-1.5 rounded-md text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200" data-view="first">首板</button>
+                    <button class="view-tab px-3 py-1.5 rounded-md text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200" data-view="second">二连板</button>
+                </div>
+            </div>
+            <div id="emotionChart" class="w-full h-80"></div>
+            <div class="mt-4 flex flex-wrap gap-4 text-sm">
+                <div class="flex items-center">
+                    <span class="w-3 h-3 bg-success rounded-full mr-2"></span>
+                    <span>活跃区 (≥1%)</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="w-3 h-3 bg-gray-400 rounded-full mr-2"></span>
+                    <span>中性区 (-1% ~ 1%)</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="w-3 h-3 bg-danger rounded-full mr-2"></span>
+                    <span>低迷区 (≤-2%)</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="w-3 h-3 bg-blue-400 rounded-full mr-2"></span>
+                    <span>历史峰值参考</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 核心数据卡片 -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-xl card-shadow p-4">
+                <p class="text-sm text-neutral">涨停总数</p>
+                <p class="text-2xl font-bold text-gray-800 mt-1">119</p>
+            </div>
+            <div class="bg-white rounded-xl card-shadow p-4">
+                <p class="text-sm text-neutral">封板率</p>
+                <p class="text-2xl font-bold text-success mt-1">74%</p>
+            </div>
+            <div class="bg-white rounded-xl card-shadow p-4">
+                <p class="text-sm text-neutral">连板数量</p>
+                <p class="text-2xl font-bold text-gray-800 mt-1">11</p>
+            </div>
+            <div class="bg-white rounded-xl card-shadow p-4">
+                <p class="text-sm text-neutral">最高连板</p>
+                <p class="text-2xl font-bold text-warning mt-1">4板</p>
+            </div>
+        </div>
+
+        <!-- 连板晋级梯队 -->
+        <div class="bg-white rounded-xl card-shadow p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">连板晋级梯队 <span class="text-xs text-neutral font-normal">（复盘数据）</span></h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-gray-200">
+                            <th class="text-left py-3 px-2 font-medium text-neutral">连板高度</th>
+                            <th class="text-left py-3 px-2 font-medium text-neutral">个股列表</th>
+                            <th class="text-left py-3 px-2 font-medium text-neutral">所属板块</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b border-gray-100">
+                            <td class="py-3 px-2"><span class="bg-warning/10 text-warning px-2 py-1 rounded font-medium">4连板 (空间板)</span></td>
+                            <td class="py-3 px-2 font-medium">合锻智能、粤电力A</td>
+                            <td class="py-3 px-2">机器人、电力</td>
+                        </tr>
+                        <tr class="border-b border-gray-100">
+                            <td class="py-3 px-2"><span class="bg-primary/10 text-primary px-2 py-1 rounded font-medium">3连板</span></td>
+                            <td class="py-3 px-2 font-medium">天地在线</td>
+                            <td class="py-3 px-2">AI数字营销</td>
+                        </tr>
+                        <tr class="border-b border-gray-100">
+                            <td class="py-3 px-2"><span class="bg-gray-100 text-gray-600 px-2 py-1 rounded font-medium">2连板</span></td>
+                            <td class="py-3 px-2 font-medium">江苏国信、晋控电力、华能国际、深南电A、春秋电子、泓淋电力、中央商场、金螳螂</td>
+                            <td class="py-3 px-2">电力、AI PC、消费、装修</td>
+                        </tr>
+                        <tr>
+                            <td class="py-3 px-2" colspan="2">
+                                <span class="text-neutral">昨日9只连板，今日晋级3只</span>
+                            </td>
+                            <td class="py-3 px-2">
+                                <span class="text-danger font-medium">晋级率: 33.33%</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 主线板块+涨停明细 -->
+        <div class="bg-white rounded-xl card-shadow p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">主线板块 & 涨停明细 <span class="text-xs text-neutral font-normal">（复盘数据）</span></h2>
+            <div class="grid md:grid-cols-2 gap-4">
+                <!-- 电力 -->
+                <div class="border border-gray-100 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-medium text-gray-800">电力 (日内最强主线)</h3>
+                        <span class="text-xs bg-success/10 text-success px-2 py-0.5 rounded">6只连板</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">粤电力A(4板)</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">江苏国信(2板)</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">晋控电力(2板)</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">华能国际(2板)</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">深南电A(2板)</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">金房能源</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">新特电气</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">顺钠股份</span>
+                    </div>
+                </div>
+
+                <!-- AI应用 -->
+                <div class="border border-gray-100 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-medium text-gray-800">AI应用/软件</h3>
+                        <span class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">4只连板</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">天地在线(3板)</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">达实智能(12天7板)</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">掌阅科技(4天2板)</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">软通动力</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">税友股份</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">浙大网新</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">中科金财</span>
+                    </div>
+                </div>
+
+                <!-- 煤炭 -->
+                <div class="border border-gray-100 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-medium text-gray-800">煤炭 (期货大涨催化)</h3>
+                        <span class="text-xs bg-warning/10 text-warning px-2 py-0.5 rounded">6只首板</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">郑州煤电</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">昊华能源</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">潞安环能</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">大有能源</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">晋控煤业</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">辽宁能源(4天2板)</span>
+                    </div>
+                </div>
+
+                <!-- AI PC -->
+                <div class="border border-gray-100 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-medium text-gray-800">AI PC/消费电子</h3>
+                        <span class="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded">3只连板</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">中京电子(5天4板)</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">春秋电子(2板)</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">泓淋电力(2板)</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">华勤技术</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">胜利精密</span>
+                        <span class="text-sm bg-gray-50 px-2 py-1 rounded">英力股份</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 炸板/风险票 -->
+        <div class="bg-white rounded-xl card-shadow p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">炸板 / 风险票清单 <span class="text-xs text-neutral font-normal">（复盘数据）</span></h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="font-medium text-danger mb-3">高位科技兑现风险</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="text-sm bg-danger/5 text-danger px-2 py-1 rounded">亨通光电(182亿)</span>
+                        <span class="text-sm bg-danger/5 text-danger px-2 py-1 rounded">风华高科(141亿)</span>
+                        <span class="text-sm bg-danger/5 text-danger px-2 py-1 rounded">兴森科技(90亿)</span>
+                        <span class="text-sm bg-danger/5 text-danger px-2 py-1 rounded">东山精密</span>
+                        <span class="text-sm bg-danger/5 text-danger px-2 py-1 rounded">云南锗业</span>
+                        <span class="text-sm bg-danger/5 text-danger px-2 py-1 rounded">环旭电子</span>
+                    </div>
+                    <p class="text-xs text-neutral mt-2">前期涨幅巨大，机构集体兑现，短期规避</p>
+                </div>
+                <div>
+                    <h3 class="font-medium text-warning mb-3">中位接力分歧风险</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="text-sm bg-warning/5 text-warning px-2 py-1 rounded">南网储能</span>
+                        <span class="text-sm bg-warning/5 text-warning px-2 py-1 rounded">宝新能源</span>
+                        <span class="text-sm bg-warning/5 text-warning px-2 py-1 rounded">黄河旋风</span>
+                        <span class="text-sm bg-warning/5 text-warning px-2 py-1 rounded">凌玮科技</span>
+                        <span class="text-sm bg-warning/5 text-warning px-2 py-1 rounded">江化微</span>
+                        <span class="text-sm bg-warning/5 text-warning px-2 py-1 rounded">光电股份</span>
+                    </div>
+                    <p class="text-xs text-neutral mt-2">板块轮动过快，资金抢跑，次日低开概率高</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 明日预判 -->
+        <div class="bg-primary/5 border border-primary/20 rounded-xl p-6 mb-6">
+            <h2 class="text-lg font-semibold text-primary mb-3">明日情绪操作参考</h2>
+            <div class="grid md:grid-cols-3 gap-4 text-sm">
+                <div>
+                    <p class="font-medium text-gray-800">机会窗口</p>
+                    <p class="text-gray-600 mt-1">早盘9:40-9:50，情绪突破活跃区，优先主板低位首板</p>
+                </div>
+                <div>
+                    <p class="font-medium text-gray-800">风险窗口</p>
+                    <p class="text-gray-600 mt-1">下午13:30-14:00，情绪接近低迷线，回避中位接力</p>
+                </div>
+                <div>
+                    <p class="font-medium text-gray-800">赛道偏好</p>
+                    <p class="text-gray-600 mt-1">电力、煤炭、AI应用，规避科创板高位科技</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部提示 -->
+        <div class="text-center text-sm text-neutral pb-6">
+            <p>风险提示：以上数据仅为盘面信息整理，不构成任何投资建议</p>
+        </div>
+    </main>
+
+    <script>
+        // ========== 实时行情逻辑 ==========
+        const INDEX_CODES = {
+            sh: 's_sh000001',
+            sz: 's_sz399001',
+            cy: 's_sz399006',
+            hs: 's_sh000300'
+        };
+
+        function fetchRealtimeQuotes() {
+            const codes = Object.values(INDEX_CODES).join(',');
+            const url = `https://qt.gtimg.cn/q=${codes}`;
+
+            fetch(url)
+                .then(res => res.text())
+                .then(data => {
+                    const result = {};
+                    const lines = data.split('\n');
+                    lines.forEach(line => {
+                        const match = line.match(/v_(\w+)="(.+)"/);
+                        if (match) {
+                            const key = match[1];
+                            const values = match[2].split('~');
+                            result[key] = {
+                                name: values[1],
+                                price: values[3],
+                                change: values[31],
+                                changePercent: values[32],
+                            };
+                        }
+                    });
+                    updateDisplay(result);
+                })
+                .catch(err => {
+                    console.error('行情拉取失败:', err);
+                    document.getElementById('marketStatus').textContent = '行情获取失败';
+                });
+        }
+
+        function updateDisplay(data) {
+            // 上证指数
+            if (data[INDEX_CODES.sh]) {
+                const sh = data[INDEX_CODES.sh];
+                document.getElementById('sh_price').textContent = sh.price;
+                const changeEl = document.getElementById('sh_change');
+                changeEl.textContent = `${sh.change} (${sh.changePercent}%)`;
+                changeEl.className = 'text-sm ' + (parseFloat(sh.change) >= 0 ? 'text-danger' : 'text-success');
+            }
+            // 深证成指
+            if (data[INDEX_CODES.sz]) {
+                const sz = data[INDEX_CODES.sz];
+                document.getElementById('sz_price').textContent = sz.price;
+                const changeEl = document.getElementById('sz_change');
+                changeEl.textContent = `${sz.change} (${sz.changePercent}%)`;
+                changeEl.className = 'text-sm ' + (parseFloat(sz.change) >= 0 ? 'text-danger' : 'text-success');
+            }
+            // 创业板指
+            if (data[INDEX_CODES.cy]) {
+                const cy = data[INDEX_CODES.cy];
+                document.getElementById('cy_price').textContent = cy.price;
+                const changeEl = document.getElementById('cy_change');
+                changeEl.textContent = `${cy.change} (${cy.changePercent}%)`;
+                changeEl.className = 'text-sm ' + (parseFloat(cy.change) >= 0 ? 'text-danger' : 'text-success');
+            }
+            // 沪深300
+            if (data[INDEX_CODES.hs]) {
+                const hs = data[INDEX_CODES.hs];
+                document.getElementById('hs_price').textContent = hs.price;
+                const changeEl = document.getElementById('hs_change');
+                changeEl.textContent = `${hs.change} (${hs.changePercent}%)`;
+                changeEl.className = 'text-sm ' + (parseFloat(hs.change) >= 0 ? 'text-danger' : 'text-success');
+            }
+
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('zh-CN', { hour12: false });
+            document.getElementById('realtimeUpdateTime').textContent = '数据更新时间: ' + timeStr;
+            document.getElementById('updateTime').textContent = '行情刷新: ' + timeStr;
+
+            // 判断交易状态
+            const hour = now.getHours();
+            const minute = now.getMinutes();
+            const day = now.getDay();
+            let status = '';
+            if (day === 0 || day === 6) {
+                status = '休市';
+            } else if (hour < 9 || (hour === 9 && minute < 30)) {
+                status = '未开盘';
+            } else if (hour >= 9 && hour < 11 || (hour === 11 && minute <= 30)) {
+                status = '交易中';
+            } else if (hour >= 11 && hour < 13) {
+                status = '午间休市';
+            } else if (hour >= 13 && hour < 15) {
+                status = '交易中';
+            } else {
+                status = '已收盘';
+            }
+            document.getElementById('marketStatus').textContent = status;
+        }
+
+        // 页面加载时立即拉取
+        fetchRealtimeQuotes();
+
+        // 每5分钟自动刷新
+        setInterval(fetchRealtimeQuotes, 5 * 60 * 1000);
+
+        // ========== 情绪图表逻辑（复盘静态数据） ==========
+        const emotionData = {
+            comprehensive: {
+                times: ['09:30', '09:35', '09:40', '09:45', '09:47', '10:00', '10:30', '11:00', '11:30', '13:00', '13:30', '13:52', '14:00', '14:30', '15:00'],
+                values: [-0.55, -0.12, 0.45, 0.89, 1.25, 1.02, 0.56, 0.12, -0.21, -0.45, -0.98, -1.68, -1.42, -0.89, -0.39],
+                max: 1.25,
+                min: -1.68,
+                close: -0.39,
+                name: '综合'
+            },
+            main: {
+                times: ['09:30', '09:35', '09:40', '09:45', '09:47', '10:00', '10:30', '11:00', '11:30', '13:00', '13:30', '13:52', '14:00', '14:30', '15:00'],
+                values: [-0.21, 0.05, 0.32, 0.78, 1.01, 0.89, 0.65, 0.42, 0.15, 0.02, -0.32, -1.32, -1.12, -0.56, 0.15],
+                max: 1.01,
+                min: -1.32,
+                close: 0.15,
+                name: '主板'
+            },
+            gem: {
+                times: ['09:30', '09:35', '09:40', '09:45', '09:47', '10:00', '10:30', '11:00', '11:30', '13:00', '13:30', '13:52', '14:00', '14:30', '15:00'],
+                values: [-0.89, -0.45, 0.23, 0.98, 1.38, 1.12, 0.34, -0.56, -1.23, -1.45, -1.89, -2.11, -1.98, -1.65, -1.47],
+                max: 1.38,
+                min: -2.11,
+                close: -1.47,
+                name: '创业板'
+            },
+            star: {
+                times: ['09:30', '09:35', '09:40', '09:45', '09:47', '10:00', '10:30', '11:00', '11:30', '13:00', '13:30', '13:52', '14:00', '14:30', '15:00'],
+                values: [-1.23, -0.67, 0.12, 0.89, 1.52, 1.23, 0.12, -0.89, -1.56, -1.89, -2.23, -2.56, -2.45, -2.21, -2.08],
+                max: 1.52,
+                min: -2.56,
+                close: -2.08,
+                name: '科创板'
+            },
+            first: {
+                times: ['09:30', '09:35', '09:40', '09:45', '09:47', '10:00', '10:30', '11:00', '11:30', '13:00', '13:30', '13:52', '14:00', '14:30', '15:00'],
+                values: [-0.32, 0.02, 0.45, 0.89, 1.16, 0.98, 0.67, 0.32, 0.01, -0.12, -0.45, -0.93, -0.78, -0.45, -0.24],
+                max: 1.16,
+                min: -0.93,
+                close: -0.24,
+                name: '首板'
+            },
+            second: {
+                times: ['09:30', '09:35', '09:40', '09:45', '09:47', '10:00', '10:30', '11:00', '11:30', '13:00', '13:30', '13:52', '14:00', '14:30', '15:00'],
+                values: [-0.45, -0.21, 0.02, 0.45, 0.69, 0.45, 0.12, -0.32, -0.67, -0.89, -1.45, -1.95, -1.78, -1.45, -1.28],
+                max: 0.69,
+                min: -1.95,
+                close: -1.28,
+                name: '二连板'
+            }
+        };
+
+        let chart;
+        function initChart(dataKey) {
+            const data = emotionData[dataKey];
+            const chartDom = document.getElementById('emotionChart');
+            chart = echarts.init(chartDom);
+            
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: function(params) {
+                        const time = params[0].axisValue;
+                        const value = params[0].value;
+                        return `时间: ${time}<br/>情绪值: ${value.toFixed(2)}%`;
+                    }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: data.times,
+                    axisLabel: {
+                        fontSize: 11
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    min: -3,
+                    max: 2,
+                    axisLabel: {
+                        formatter: '{value}%',
+                        fontSize: 11
+                    },
+                    splitLine: {
+                        lineStyle: {
+                            type: 'dashed'
+                        }
+                    },
+                    markLine: {
+                        data: [
+                            { yAxis: 1, lineStyle: { color: '#00B42A', type: 'dashed' }, label: { formatter: '活跃线 +1%' } },
+                            { yAxis: -2, lineStyle: { color: '#F53F3F', type: 'dashed' }, label: { formatter: '低迷线 -2%' } },
+                            { yAxis: 1.22, lineStyle: { color: '#4080FF', type: 'dotted' }, label: { formatter: '历史峰值 1.22%' } }
+                        ]
+                    }
+                },
+                series: [
+                    {
+                        name: data.name,
+                        type: 'line',
+                        smooth: true,
+                        data: data.values,
+                        lineStyle: {
+                            width: 3,
+                            color: '#165DFF'
+                        },
+                        itemStyle: {
+                            color: '#165DFF'
+                        },
+                        markPoint: {
+                            data: [
+                                { type: 'max', name: '最大值', symbol: 'circle', symbolSize: 40, itemStyle: { color: '#00B42A' }, label: { formatter: '最大值\n{c}%' } },
+                                { type: 'min', name: '最小值', symbol: 'circle', symbolSize: 40, itemStyle: { color: '#F53F3F' }, label: { formatter: '最小值\n{c}%' } }
+                            ]
+                        },
+                        areaStyle: {
+                            color: {
+                                type: 'linear',
+                                x: 0,
+                                y: 0,
+                                x2: 0,
+                                y2: 1,
+                                colorStops: [{
+                                    offset: 0, color: 'rgba(22, 93, 255, 0.2)'
+                                }, {
+                                    offset: 1, color: 'rgba(22, 93, 255, 0.02)'
+                                }]
+                            }
+                        }
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', function() {
+                chart.resize();
+            });
+        }
+
+        function switchView(dataKey) {
+            document.querySelectorAll('.view-tab').forEach(btn => {
+                if(btn.dataset.view === dataKey) {
+                    btn.classList.remove('bg-gray-100', 'text-gray-600');
+                    btn.classList.add('bg-primary', 'text-white');
+                } else {
+                    btn.classList.remove('bg-primary', 'text-white');
+                    btn.classList.add('bg-gray-100', 'text-gray-600');
+                }
+            });
+
+            const data = emotionData[dataKey];
+            chart.setOption({
+                xAxis: {
+                    data: data.times
+                },
+                series: [{
+                    name: data.name,
+                    data: data.values,
+                    markPoint: {
+                        data: [
+                            { type: 'max', name: '最大值', symbol: 'circle', symbolSize: 40, itemStyle: { color: '#00B42A' }, label: { formatter: '最大值\n{c}%' } },
+                            { type: 'min', name: '最小值', symbol: 'circle', symbolSize: 40, itemStyle: { color: '#F53F3F' }, label: { formatter: '最小值\n{c}%' } }
+                        ]
+                    }
+                }]
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initChart('comprehensive');
+            
+            document.querySelectorAll('.view-tab').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    switchView(this.dataset.view);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
