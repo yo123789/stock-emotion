@@ -39,7 +39,7 @@
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
                     <h1 class="text-xl font-bold text-primary">A股每日复盘 & 情绪择时</h1>
-                    <span class="ml-3 text-sm text-neutral bg-gray-100 px-2 py-1 rounded">数据日期: 2026-06-02</span>
+                    <span id="dataDate" class="ml-3 text-sm text-neutral bg-gray-100 px-2 py-1 rounded">数据日期: --</span>
                 </div>
                 <div class="flex items-center space-x-2">
                     <span id="marketStatus" class="text-sm text-neutral">--</span>
@@ -380,6 +380,10 @@
             const timeStr = now.toLocaleTimeString('zh-CN', { hour12: false });
             document.getElementById('realtimeUpdateTime').textContent = '数据更新时间: ' + timeStr;
             document.getElementById('updateTime').textContent = '行情刷新: ' + timeStr;
+
+            // 更新日期显示
+            const dateStr = now.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+            document.getElementById('dataDate').textContent = '数据日期: ' + dateStr;
 
             // 判断交易状态
             const hour = now.getHours();
