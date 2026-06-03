@@ -39,11 +39,11 @@
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
                     <h1 class="text-xl font-bold text-primary">A股每日复盘 & 情绪择时</h1>
-                    <span id="dataDate" class="ml-3 text-sm text-neutral bg-gray-100 px-2 py-1 rounded">数据日期: --</span>
+                    <span id="dataDate" class="ml-3 text-sm text-neutral bg-gray-100 px-2 py-1 rounded">数据日期: 加载中</span>
                 </div>
                 <div class="flex items-center space-x-2">
-                    <span id="marketStatus" class="text-sm text-neutral">--</span>
-                    <span id="updateTime" class="text-xs text-neutral">--</span>
+                    <span id="marketStatus" class="text-sm text-neutral">加载中</span>
+                    <span id="updateTime" class="text-xs text-neutral">加载中</span>
                 </div>
             </div>
         </div>
@@ -57,26 +57,26 @@
             <div id="realtimeIndex" class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="text-center p-3 bg-gray-50 rounded-lg">
                     <p class="text-xs text-neutral">上证指数</p>
-                    <p id="sh_price" class="text-xl font-bold text-gray-800">--</p>
-                    <p id="sh_change" class="text-sm">--</p>
+                    <p id="sh_price" class="text-xl font-bold text-gray-800">加载中</p>
+                    <p id="sh_change" class="text-sm">加载中</p>
                 </div>
                 <div class="text-center p-3 bg-gray-50 rounded-lg">
                     <p class="text-xs text-neutral">深证成指</p>
-                    <p id="sz_price" class="text-xl font-bold text-gray-800">--</p>
-                    <p id="sz_change" class="text-sm">--</p>
+                    <p id="sz_price" class="text-xl font-bold text-gray-800">加载中</p>
+                    <p id="sz_change" class="text-sm">加载中</p>
                 </div>
                 <div class="text-center p-3 bg-gray-50 rounded-lg">
                     <p class="text-xs text-neutral">创业板指</p>
-                    <p id="cy_price" class="text-xl font-bold text-gray-800">--</p>
-                    <p id="cy_change" class="text-sm">--</p>
+                    <p id="cy_price" class="text-xl font-bold text-gray-800">加载中</p>
+                    <p id="cy_change" class="text-sm">加载中</p>
                 </div>
                 <div class="text-center p-3 bg-gray-50 rounded-lg">
                     <p class="text-xs text-neutral">沪深300</p>
-                    <p id="hs_price" class="text-xl font-bold text-gray-800">--</p>
-                    <p id="hs_change" class="text-sm">--</p>
+                    <p id="hs_price" class="text-xl font-bold text-gray-800">加载中</p>
+                    <p id="hs_change" class="text-sm">加载中</p>
                 </div>
             </div>
-            <p class="text-xs text-neutral mt-3 text-right" id="realtimeUpdateTime">数据更新时间: --</p>
+            <p class="text-xs text-neutral mt-3 text-right" id="realtimeUpdateTime">数据更新时间: 加载中</p>
         </div>
 
         <!-- 大盘情绪图表区域 -->
@@ -337,8 +337,8 @@
                     updateDisplay(result);
                 })
                 .catch(err => {
-                    console.error('行情拉取失败:', err);
-                    document.getElementById('marketStatus').textContent = '行情获取失败';
+                    console.log('行情获取中，请稍候');
+                    document.getElementById('marketStatus').textContent = '行情获取中';
                 });
         }
 
@@ -406,7 +406,14 @@
             document.getElementById('marketStatus').textContent = status;
         }
 
-        // 页面加载时立即拉取
+        // 页面加载时立即设置当天日期
+        (function setDateImmediate() {
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+            document.getElementById('dataDate').textContent = '数据日期: ' + dateStr;
+        })();
+
+        // 页面加载时立即拉取行情
         fetchRealtimeQuotes();
 
         // 每5分钟自动刷新
